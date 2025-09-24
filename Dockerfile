@@ -1,20 +1,23 @@
-# Usa una imagen oficial de Node.js como base
-FROM node:18
+# Use official Node.js LTS 20 as base image
+FROM node:20-alpine
 
-# Establece el directorio de trabajo dentro del contenedor
+# Set working directory inside container
 WORKDIR /app
 
-# Copia los archivos del proyecto al contenedor
+# Copy package files first for better Docker layer caching
 COPY package*.json ./
 
-# Instala las dependencias
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production
 
-# Copia el resto del código al contenedor
+# Copy the rest of the project code to container
 COPY . .
 
-# Expone el puerto en el que corre tu aplicación
+# Build the application
+RUN npm run build
+
+# Expose the port the app runs on
 EXPOSE 3000
 
-# Comando para iniciar la aplicación
-CMD ["npm", "run", "start"]
+# Command to start the application
+CMD ["npm", "run", "start:prod"]
