@@ -5,19 +5,25 @@ import { PokemonModule } from './pokemon/pokemon.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { typeOrmConfig } from './config/typeorm.config';
 import * as memoryStore from 'cache-manager-memory-store';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
-    MongooseModule.forRoot(process.env.MONGODB_URI || 'your_default_mongodb_uri'),
-    PokemonModule,CacheModule.register({
-    store: memoryStore,
-    ttl: 600, //Tiempo en segundos (10 minutos)
-    max: 100, // Máximo de elementos en caché
-    isGlobal: true
-  }), UserModule],
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TypeOrmModule.forRoot(typeOrmConfig),
+    CacheModule.register({
+      store: memoryStore,
+      ttl: 600, // Time in seconds (10 minutes)
+      max: 100, // Maximum elements in cache
+      isGlobal: true,
+    }),
+    PokemonModule,
+    UserModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

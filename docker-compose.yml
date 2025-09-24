@@ -6,17 +6,27 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - mongo
+      - postgres
     environment:
-      MONGO_URI: mongodb://mongo:27017/pokeagent
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      DB_NAME: pokeagent
+      NODE_ENV: development
 
-  mongo:
-    image: mongo:latest
-    container_name: mongo-db
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres-db
     ports:
-      - "27017:27017"
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: pokeagent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
 volumes:
-  mongo_data:
+  postgres_data:
