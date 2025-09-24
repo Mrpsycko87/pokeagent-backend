@@ -1,18 +1,18 @@
 import { Injectable, HttpException, HttpStatus, Inject, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Pokemon } from '../schemas/pokemon/pokemon.schema'
-import { Cache } from 'cache-manager'
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Pokemon } from '../entities/pokemon.entity';
+import { Cache } from 'cache-manager';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import axios from 'axios';
-
 
 @Injectable()
 export class PokemonService {
     public readonly apiUrl = 'https://pokeapi.co/api/v2/pokemon';
+    
     constructor(
         @Inject(CACHE_MANAGER) private cacheManager: Cache,
-        @InjectModel(Pokemon.name) private pokemonModel: Model<Pokemon>
+        @InjectRepository(Pokemon) private pokemonRepository: Repository<Pokemon>
     ) { }
 
     structuredPokemonJson(data: any) {
@@ -77,41 +77,52 @@ export class PokemonService {
     }
 
     async capturePokemon(newPoke: any): Promise<Pokemon> {
-        const namePokemon = await this.pokemonModel.findOne({ name: newPoke.name, user:newPoke.user });
-        if (namePokemon) {
-            throw new HttpException('El usuario ya tiene ese  pokemon', HttpStatus.BAD_REQUEST);
-        } else {
-            const newpokemon = new this.pokemonModel({
-                name: newPoke.name,
-                nickname: newPoke.nickname,
-                ide: newPoke.id,
-                user: newPoke.user,
-                sprite_url: newPoke.sprite_url,
-                abilities: newPoke.abilities,
-                types: newPoke.types
-            })
-            return newpokemon.save()
-        }
-    }
-    async getPokemonByUser(idUser:string){
-        const pokemons = await this.pokemonModel.find({ user: idUser }).sort({ createdAt: -1 });
-        return pokemons
+        const existingPokemon = await this.pokemonRepository.findOne({ 
+            where: { name: newPoke.name, user_id: newPoke.user }
+        });
         
+        if (existingPokemon) {
+            throw new HttpException('El usuario ya tiene ese  pokemon', HttpStatus.BAD_REQUEST);
+        }
+        
+        const pokemon = this.pokemonRepository.create({
+            name: newPoke.name,
+            nickname: newPoke.nickname,
+            ide: newPoke.id,
+            user_id: newPoke.user,
+            sprite_url: newPoke.sprite_url,
+            abilities: newPoke.abilities,
+            types: newPoke.types
+        });
+        
+        return this.pokemonRepository.save(pokemon);
     }
 
-    async updatePokemon(idPoke:string, updatePoke:any) {
-        const pokemon = await this.pokemonModel.findByIdAndUpdate(idPoke, updatePoke, { new: true });
+    async getPokemonByUser(idUser: string) {
+        const pokemons = await this.pokemonRepository.find({ 
+            where: { user_id: idUser },
+            order: { createdAt: 'DESC' }
+        });
+        return pokemons;
+    }
+
+    async updatePokemon(idPoke: string, updatePoke: any) {
+        const pokemon = await this.pokemonRepository.findOne({ where: { id: idPoke } });
         if (!pokemon) {
             throw new NotFoundException(`Pokémon con ID ${idPoke} no encontrado.`);
         }
-        return pokemon;
+        
+        Object.assign(pokemon, updatePoke);
+        return this.pokemonRepository.save(pokemon);
     }
 
-    async deletePokemon(idPoke:string) {
-        const pokemon = await this.pokemonModel.findByIdAndDelete(idPoke);
+    async deletePokemon(idPoke: string) {
+        const pokemon = await this.pokemonRepository.findOne({ where: { id: idPoke } });
         if (!pokemon) {
             throw new NotFoundException(`Pokémon con ID ${idPoke} no encontrado.`);
         }
+        
+        await this.pokemonRepository.remove(pokemon);
         return pokemon;
     }
 }
